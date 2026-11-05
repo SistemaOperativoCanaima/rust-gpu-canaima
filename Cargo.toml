@@ -1,6 +1,6 @@
 [package]
 name = "canaima-gpu"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Canaima Sistema Operativo <proyecto.canaima@cnti.gob.ve>"]
 description = "Detección robusta de GPU NVIDIA y parches de compatibilidad WebKitGTK / Wayland para Canaima GNU/Linux"
