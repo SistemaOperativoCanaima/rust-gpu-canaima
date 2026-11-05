@@ -2,9 +2,9 @@
 name = "canaima-gpu"
 version = "0.1.0"
 edition = "2021"
-authors = ["Canaima GNU/Linux Team"]
+authors = ["Canaima Sistema Operativo <proyecto.canaima@cnti.gob.ve>"]
 description = "Detección robusta de GPU NVIDIA y parches de compatibilidad WebKitGTK / Wayland para Canaima GNU/Linux"
 license = "GPL-3.0-only"
+repository = "https://github.com/SistemaOperativoCanaima/rust-gpu-canaima"
 
 [dependencies]
-
