@@ -123,21 +123,95 @@ pub fn is_wayland() -> bool {
     false
 }
 
-/// Detecta si el entorno de escritorio actual es KDE Plasma.
+/// Entornos de escritorio soportados en Canaima GNU/Linux.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DesktopEnvironment {
+    Gnome,
+    KdePlasma,
+    Xfce,
+    Lxde,
+    Mate,
+    Cinnamon,
+    Lxqt,
+    Other,
+}
+
+/// Detecta el entorno de escritorio actual analizando las variables de sesión del sistema.
 #[cfg(target_os = "linux")]
-pub fn is_kde_plasma() -> bool {
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+pub fn get_desktop_environment() -> DesktopEnvironment {
+    let current_desktop = std::env::var("XDG_CURRENT_DESKTOP")
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let session = std::env::var("DESKTOP_SESSION")
+    let session_desktop = std::env::var("XDG_SESSION_DESKTOP")
         .unwrap_or_default()
         .to_ascii_lowercase();
-    desktop.contains("kde") || desktop.contains("plasma") || session.contains("plasma")
+    let desktop_session = std::env::var("DESKTOP_SESSION")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    let matches = |name: &str| -> bool {
+        current_desktop.contains(name)
+            || session_desktop.contains(name)
+            || desktop_session.contains(name)
+    };
+
+    if matches("gnome") {
+        DesktopEnvironment::Gnome
+    } else if matches("plasma") || matches("kde") {
+        DesktopEnvironment::KdePlasma
+    } else if matches("xfce") {
+        DesktopEnvironment::Xfce
+    } else if matches("cinnamon") {
+        DesktopEnvironment::Cinnamon
+    } else if matches("mate") {
+        DesktopEnvironment::Mate
+    } else if matches("lxqt") {
+        DesktopEnvironment::Lxqt
+    } else if matches("lxde") {
+        DesktopEnvironment::Lxde
+    } else {
+        DesktopEnvironment::Other
+    }
 }
 
 #[cfg(not(target_os = "linux"))]
+pub fn get_desktop_environment() -> DesktopEnvironment {
+    DesktopEnvironment::Other
+}
+
+/// Detecta si el entorno actual es GNOME.
+pub fn is_gnome() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Gnome
+}
+
+/// Detecta si el entorno actual es KDE Plasma.
 pub fn is_kde_plasma() -> bool {
-    false
+    get_desktop_environment() == DesktopEnvironment::KdePlasma
+}
+
+/// Detecta si el entorno actual es XFCE.
+pub fn is_xfce() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Xfce
+}
+
+/// Detecta si el entorno actual es Cinnamon.
+pub fn is_cinnamon() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Cinnamon
+}
+
+/// Detecta si el entorno actual es MATE.
+pub fn is_mate() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Mate
+}
+
+/// Detecta si el entorno actual es LXQt.
+pub fn is_lxqt() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Lxqt
+}
+
+/// Detecta si el entorno actual es LXDE.
+pub fn is_lxde() -> bool {
+    get_desktop_environment() == DesktopEnvironment::Lxde
 }
 
 /// Aplica los parches de compatibilidad recomendados con opciones por defecto.
@@ -150,21 +224,31 @@ pub fn apply_workarounds() {
 pub fn apply_workarounds_with_options(opts: &GpuOptions) {
     let nvidia = is_nvidia_active();
     let wayland = is_wayland();
-    let kde = is_kde_plasma();
+    let de = get_desktop_environment();
 
-    // Los parches automáticos solo deben activarse si hay una GPU NVIDIA activa
-    // o si el desarrollador los solicita explícitamente, preservando la aceleración
-    // por hardware en compositores Wayland y KDE para GPUs Intel y AMD.
+    // 1. WEBKIT_DISABLE_DMABUF_RENDERER:
+    // Soluciona errores fatales de protocolo Wayland y pantallas blancas en drivers NVIDIA
+    // bajo cualquier compositor (Mutter en GNOME, KWin en KDE Plasma, Muffin en Cinnamon,
+    // o compositores Wayland ligeros como Labwc en LXQt/XFCE).
     let should_disable_dmabuf = opts.force_disable_dmabuf || nvidia;
-    let should_disable_compositing =
-        opts.force_disable_compositing || (nvidia && (kde || wayland));
+
+    // 2. WEBKIT_DISABLE_COMPOSITING_MODE:
+    // Evita bloqueos en drivers privativos de NVIDIA:
+    // - En Wayland (KDE KWin, GNOME Mutter, Cinnamon)
+    // - En entornos X11 ligeros o sin compositor activo (XFCE Xfwm4, MATE Marco, LXDE Openbox, LXQt Openbox)
+    // Para GPUs Intel y AMD, se preserva la aceleración por hardware en todos los escritorios.
+    let should_disable_compositing = opts.force_disable_compositing
+        || (nvidia && (wayland || matches!(de, DesktopEnvironment::KdePlasma | DesktopEnvironment::Gnome | DesktopEnvironment::Cinnamon | DesktopEnvironment::Xfce | DesktopEnvironment::Mate | DesktopEnvironment::Lxde | DesktopEnvironment::Lxqt)));
+
+    // 3. __NV_DISABLE_EXPLICIT_SYNC:
+    // Previene Wayland Protocol Error 71 en drivers NVIDIA con explicit sync en KDE Plasma y GNOME.
     let should_disable_explicit_sync =
         opts.force_disable_explicit_sync || (nvidia && wayland);
 
     if opts.verbose {
         println!(
-            "🔧 [canaima-gpu] Diagnóstico de entorno -> NVIDIA: {}, Wayland: {}, KDE: {}",
-            nvidia, wayland, kde
+            "🔧 [canaima-gpu] Diagnóstico -> NVIDIA: {}, Wayland: {}, Entorno: {:?}",
+            nvidia, wayland, de
         );
     }
 
@@ -218,7 +302,14 @@ mod tests {
     fn test_detection_functions_do_not_panic() {
         let _ = is_nvidia_active();
         let _ = is_wayland();
+        let _ = get_desktop_environment();
+        let _ = is_gnome();
         let _ = is_kde_plasma();
+        let _ = is_xfce();
+        let _ = is_cinnamon();
+        let _ = is_mate();
+        let _ = is_lxqt();
+        let _ = is_lxde();
     }
 
     #[test]
