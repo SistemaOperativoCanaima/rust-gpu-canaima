@@ -1,0 +1,10 @@
+[package]
+name = "canaima-gpu"
+version = "0.1.0"
+edition = "2021"
+authors = ["Canaima GNU/Linux Team"]
+description = "Detección robusta de GPU NVIDIA y parches de compatibilidad WebKitGTK / Wayland para Canaima GNU/Linux"
+license = "GPL-3.0-only"
+
+[dependencies]
+
