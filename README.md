@@ -1,93 +1,203 @@
-# lib-rust-gpu
+# 🚀 canaima-gpu (`lib-rust-gpu`)
 
+<div align="center">
 
+[![Canaima GNU/Linux](https://img.shields.io/badge/Canaima-GNU%2FLinux-0B6793?style=for-the-badge&logo=linux&logoColor=white)](https://canaima.softwarelibre.gob.ve/)
+[![Rust 2021](https://img.shields.io/badge/Rust-2021%20Edition-black?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)]()
+[![Tauri v2](https://img.shields.io/badge/Tauri-v2.x-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
 
-## Getting started
+**Detección inteligente de hardware gráfico y parches de compatibilidad WebKitGTK / Wayland / X11 para Canaima GNU/Linux.**
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+</div>
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## 📖 Descripción General
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+**`canaima-gpu`** es una librería en Rust diseñada específicamente para resolver problemas críticos de renderizado y estabilidad que experimentan las aplicaciones de escritorio basadas en **WebKitGTK** y **Tauri 2** en entornos GNU/Linux.
 
+En particular, previene:
+- ❌ **Pantallas blancas o congelamientos** al iniciar la aplicación.
+- ❌ **`Wayland Protocol Error 71`** ocasionado por fallos de sincronización explícita (`explicit sync`) en controladores NVIDIA.
+- ❌ Conflictos con el renderizador **DMA-BUF** en compositores Wayland y compositores X11 ligeros.
+- ❌ Degradación de rendimiento en tarjetas **Intel** o **AMD**, asegurando que la aceleración por hardware *zero-copy* se mantenga activa en usuarios que no usan NVIDIA.
+
+---
+
+## ✨ Características Principales
+
+- ⚡ **Sin llamadas lentas al sistema**: No depende de comandos externos como `lspci` ni `nvidia-smi`. Inspecciona directamente `/sys`, `/proc` y las interfaces de caracteres `/dev/nvidia*` para una inicialización instantánea (< 1 ms).
+- 🎯 **Detección multinivel de NVIDIA**:
+  1. Sistema de archivos `/proc/driver/nvidia` (módulos privativos u open del kernel).
+  2. Nodos `/sys/module/nvidia*`.
+  3. Dispositivos de caracteres `/dev/nvidiactl` y `/dev/nvidia0`.
+  4. Módulos activos en `/proc/modules`.
+  5. Escaneo exhaustivo del bus PCI (`/sys/bus/pci/devices`) filtrando por clase gráfica (`0x03xxxx`), Vendor ID NVIDIA (`0x10de`) o symlink activo al controlador del kernel.
+- 🖥️ **Soporte completo para 7 entornos de escritorio**: Detecta y se adapta automáticamente a **GNOME**, **KDE Plasma**, **XFCE**, **LXDE**, **MATE**, **Cinnamon** y **LXQt**.
+- 🛡️ **Parches selectivos no invasivos**: No desactiva la aceleración por hardware a usuarios con GPUs Intel (Arc / Iris / UHD) ni AMD (Radeon), aplicando parches estrictamente cuando hay GPUs NVIDIA o cuando se solicita explícitamente.
+- 🌐 **Zero Dependencies**: Implementado usando exclusivamente la biblioteca estándar de Rust (`std`).
+
+---
+
+## 🖥️ Matriz de Compatibilidad por Entorno
+
+| Entorno de Escritorio | Gestor de Ventanas | Sesión Soportada | Comportamiento del Parche |
+| :--- | :--- | :--- | :--- |
+| **GNOME** | Mutter | Wayland & X11 | Activa `WEBKIT_DISABLE_DMABUF_RENDERER` y `__NV_DISABLE_EXPLICIT_SYNC` en NVIDIA. |
+| **KDE Plasma** | KWin | Wayland & X11 | Previene *Protocol Error 71* y bloqueos en KWin Wayland con NVIDIA. |
+| **XFCE** | Xfwm4 | X11 | Desactiva DMA-BUF problemático en X11 sobre NVIDIA, aceleración activa en Intel/AMD. |
+| **LXDE** | Openbox | X11 | Modo de composición seguro en NVIDIA para evitar fallos sin compositor. |
+| **MATE** | Marco | X11 | Compatible con Marco en modo software o composición GL. |
+| **Cinnamon** | Muffin | X11 & Wayland | Parches automáticos aplicados a compositores derivados de Mutter. |
+| **LXQt** | Openbox / KWin | X11 & Wayland | Aceleración completa en Intel/AMD y compatibilidad asegurada en NVIDIA. |
+
+---
+
+## 📦 Instalación
+
+Agrega `canaima-gpu` a tu archivo `Cargo.toml`:
+
+```toml
+[dependencies]
+canaima-gpu = { path = "ruta/a/lib-rust-gpu-main" }
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/canaima-gnu-linux/desarrollo/escritorio/lib-rust/lib-rust-gpu.git
-git branch -M main
-git push -uf origin main
+
+O si utilizas un repositorio Git:
+
+```toml
+[dependencies]
+canaima-gpu = { git = "https://github.com/SistemaOperativoCanaima/rust-gpu-canaima.git", branch = "main" }
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/canaima-gnu-linux/desarrollo/escritorio/lib-rust/lib-rust-gpu/-/settings/integrations)
+## 💻 Guía de Uso
 
-## Collaborate with your team
+### Uso Básico Recomendado (Tauri v2 / WebKitGTK)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+> [!IMPORTANT]
+> `canaima_gpu::apply_workarounds()` debe ejecutarse al **inicio absoluto de la función `main()`**, antes de inicializar hilos adicionales o iniciar el runtime de Tauri / GTK.
 
-## Test and Deploy
+En `src-tauri/src/main.rs`:
 
-Use the built-in continuous integration in GitLab.
+```rust
+// Evita la consola de Windows en modo release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+fn main() {
+    // 1. Aplicar parches gráficos de compatibilidad Canaima
+    canaima_gpu::apply_workarounds();
 
-***
+    // 2. Iniciar la aplicación Tauri
+    mi_app_lib::run();
+}
+```
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### Uso Avanzado con Opciones Personalizadas (`GpuOptions`)
 
-## Suggestions for a good README
+Puedes personalizar la activación de los parches utilizando la estructura `GpuOptions`:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```rust
+use canaima_gpu::{apply_workarounds_with_options, GpuOptions};
 
-## Name
-Choose a self-explaining name for your project.
+fn main() {
+    let opciones = GpuOptions {
+        // Forzar desactivación de DMA-BUF sin importar el hardware
+        force_disable_dmabuf: false,
+        // Forzar desactivación del modo de composición
+        force_disable_compositing: false,
+        // Forzar desactivación de explicit sync
+        force_disable_explicit_sync: false,
+        // Mostrar logs detallados de diagnóstico en la terminal
+        verbose: true,
+    };
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+    apply_workarounds_with_options(&opciones);
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+    mi_app_lib::run();
+}
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Consultas de Entorno y Detección en Código
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Puedes usar las funciones de detección de forma independiente en tu lógica de negocio:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```rust
+use canaima_gpu::{
+    is_nvidia_active, is_wayland, get_desktop_environment, DesktopEnvironment
+};
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+fn verificar_sistema() {
+    if is_nvidia_active() {
+        println!("🎮 GPU NVIDIA activa detectada.");
+    }
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+    if is_wayland() {
+        println!("🚀 Sesión sobre Wayland.");
+    } else {
+        println!("🖥️ Sesión sobre X11.");
+    }
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+    match get_desktop_environment() {
+        DesktopEnvironment::Gnome => println!("Entorno: GNOME"),
+        DesktopEnvironment::KdePlasma => println!("Entorno: KDE Plasma"),
+        DesktopEnvironment::Xfce => println!("Entorno: XFCE"),
+        DesktopEnvironment::Cinnamon => println!("Entorno: Cinnamon"),
+        DesktopEnvironment::Mate => println!("Entorno: MATE"),
+        DesktopEnvironment::Lxqt => println!("Entorno: LXQt"),
+        DesktopEnvironment::Lxde => println!("Entorno: LXDE"),
+        DesktopEnvironment::Other => println!("Otro entorno de escritorio"),
+    }
+}
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+---
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## ⚙️ Variables de Entorno Gestionadas
 
-## License
-For open source projects, say how it is licensed.
+Cuando se detecta una GPU NVIDIA (o se fuerza en las opciones), la librería configura automáticamente:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| Variable | Valor | Propósito |
+| :--- | :---: | :--- |
+| `WEBKIT_DISABLE_DMABUF_RENDERER` | `1` | Desactiva el renderizador DMA-BUF de WebKitGTK para prevenir pantallas blancas y caídas en compositores Wayland. |
+| `WEBKIT_DISABLE_COMPOSITING_MODE` | `1` | Previene bloqueos del pipeline OpenGL/GLX con drivers privativos de NVIDIA. |
+| `__NV_DISABLE_EXPLICIT_SYNC` | `1` | Corrige el fallo `Wayland Protocol Error 71` en compositores KWin (KDE Plasma 6) y Mutter (GNOME 46+). |
+
+*Nota: Si la variable de entorno ya fue configurada manualmente por el usuario en su sistema, `canaima-gpu` respetará su valor y no la sobreescribirá.*
+
+---
+
+## 🧪 Pruebas Unitarias
+
+Para ejecutar la suite de pruebas:
+
+```bash
+cargo test
+```
+
+Para verificar cumplimiento estricto con Clippy:
+
+```bash
+cargo clippy -- -D warnings
+```
+
+---
+
+## 👥 Equipo y Créditos
+
+Desarrollado con dedicación por el **Equipo de Desarrollo de Canaima GNU/Linux**.
+
+- **Sitio Oficial**: [https://canaima.softwarelibre.gob.ve/](https://canaima.softwarelibre.gob.ve/)
+- **Repositorio**: [GitHub Sistema Operativo Canaima](https://github.com/SistemaOperativoCanaima)
+
+---
+
+## 📄 Licencia
+
+Este proyecto se distribuye bajo la licencia **GNU General Public License v3.0 (GPL-3.0-only)**. Consulta el archivo `LICENSE` para más detalles.
